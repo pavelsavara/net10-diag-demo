@@ -1,0 +1,54 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <NoDefaultLaunchSettingsFile>true</NoDefaultLaunchSettingsFile>
+    <StaticWebAssetProjectMode>Default</StaticWebAssetProjectMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0-preview.3.25120.10" />
+  </ItemGroup>
+
+  <!-- this is all that should be necessary in the preview 4 -->
+  <PropertyGroup>
+    <!-- enables diagnostic server, requires workload and relink, this is new -->
+    <!-- this is new switch -->
+    <WasmPerfTracing>true</WasmPerfTracing>
+
+    <!-- enables metrics https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics -->
+    <!-- this is existing switch also on other targets -->
+    <MetricsSupport>true</MetricsSupport>
+
+    <!-- enables system events https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/diagnostics#observability-and-telemetry -->
+    <!-- this is existing switch also on other targets -->
+    <EventSourceSupport>true</EventSourceSupport>
+  </PropertyGroup>
+
+  <!-- below are temporary hacks to make it work with runtime branch-->
+  <!-- make sure you delete bin and obj folder after you change this -->
+    <PropertyGroup>
+      <WasmBuildNative>true</WasmBuildNative>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(WasmPerfTracing)' == 'true'">
+      <_MonoComponent Include="diagnostics_tracing" />
+      <EmscriptenEnvVars Include="WASM_PERFTRACING=1" />
+    </ItemGroup>
+    <Target Name="UpdateSdkPack" BeforeTargets="ProcessFrameworkReferences">
+      <ItemGroup>
+        <KnownWebAssemblySdkPack Update="Microsoft.NET.Sdk.WebAssembly.Pack">
+          <WebAssemblySdkPackVersion>10.0.0-dev</WebAssemblySdkPackVersion>
+        </KnownWebAssemblySdkPack>
+      </ItemGroup>
+    </Target>
+    <Target Name="UpdateRuntimePack" AfterTargets="ResolveFrameworkReferences">
+      <ItemGroup>
+        <ResolvedRuntimePack PackageDirectory="..\packages\microsoft.netcore.app.runtime.browser-wasm\Debug"
+                            Condition="'%(ResolvedRuntimePack.FrameworkName)' == 'Microsoft.NETCore.App'" />
+      </ItemGroup>
+    </Target>
+  <!-- end of temporary hacks -->
+
+</Project>
