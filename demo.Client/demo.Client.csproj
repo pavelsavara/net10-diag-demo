@@ -18,6 +18,9 @@
     <!-- this is new switch -->
     <WasmPerfTracing>true</WasmPerfTracing>
 
+    <!-- enables perf instrumentation for sampling CPU profiler -->
+    <WasmPerfInstrumentation>true</WasmPerfInstrumentation>
+
     <!-- enables metrics https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.metrics -->
     <!-- this is existing switch also on other targets -->
     <MetricsSupport>true</MetricsSupport>
@@ -35,6 +38,7 @@
     <ItemGroup Condition="'$(WasmPerfTracing)' == 'true'">
       <_MonoComponent Include="diagnostics_tracing" />
       <EmscriptenEnvVars Include="WASM_PERFTRACING=1" />
+      <WasmEnvironmentVariable Include="DOTNET_WasmPerfInstrumentation" Value="1" Condition="'$(WasmPerfInstrumentation)' == 'true'"/>
     </ItemGroup>
     <Target Name="UpdateSdkPack" BeforeTargets="ProcessFrameworkReferences">
       <ItemGroup>
