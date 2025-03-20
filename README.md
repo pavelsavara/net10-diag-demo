@@ -3,6 +3,7 @@
 Demo for https://github.com/dotnet/runtime/pull/110818
 
 ```
+$env:NUGET_PACKAGES="$pwd\.nuget"
 dotnet run -c Debug --project .\demo\demo.csproj
 ```
 
