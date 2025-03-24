@@ -19,14 +19,14 @@ globalThis.getDotnetRuntime(0).collectGcDump()
 The .nettrace file could be coverted for VS via `dotnet-gcdump convert` or opened in `PerfView.exe` as is.
 
 ```js
-globalThis.getDotnetRuntime(0).collectPerfCounters(5000)
+globalThis.getDotnetRuntime(0).collectPerfCounters({durationSeconds: 60})
 ```
 
 The counters could be opened in VS, `PerfView.exe` tools or via `dotnet-trace report xxx.nettrace topN -n 10`
 
 
 ```js
-globalThis.getDotnetRuntime(0).collectCpuSamples(20000)
+globalThis.getDotnetRuntime(0).collectCpuSamples({durationSeconds: 60})
 ```
 
 The counters could be opened in VS or in `PerfView.exe` 

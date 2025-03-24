@@ -11,7 +11,7 @@ var WasmEnableSIMD = true;
 
 var WasmEnableExceptionHandling = true;
 
-var gitHash = "cbd1569a3d4c5c2412cdc8e1510ef90c297e2bf5";
+var gitHash = "d2f4164bc1c6731a7d880e877f40b024b825cf51";
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
@@ -10689,9 +10689,12 @@ function generateWasmBody(frame, traceName, ip, startOfBody, endOfBody, builder,
             // call C
             case 633 /* MintOpcode.MINT_PROF_ENTER */:
             case 634 /* MintOpcode.MINT_PROF_SAMPLEPOINT */:
+                append_profiler_event(builder, ip, opcode);
+                break;
             case 635 /* MintOpcode.MINT_PROF_EXIT */:
             case 636 /* MintOpcode.MINT_PROF_EXIT_VOID */:
                 append_profiler_event(builder, ip, opcode);
+                ip = abort;
                 break;
             // Generating code for these is kind of complex due to the intersection of JS and int64,
             //  and it would bloat the implementation so we handle them all in C instead and match
@@ -16517,6 +16520,8 @@ function initializeExports(globalObjects) {
         utf8ToString,
         mono_background_exec: () => threads_c_functions.mono_background_exec(),
         mono_wasm_ds_exec: () => threads_c_functions.mono_wasm_ds_exec(),
+        mono_wasm_method_get_name_ex: (m) => threads_c_functions.mono_wasm_method_get_name_ex(m),
+        free: (p) => free(p),
     };
     if (WasmEnableThreads) {
         rh.dumpThreads = mono_wasm_dump_threads;

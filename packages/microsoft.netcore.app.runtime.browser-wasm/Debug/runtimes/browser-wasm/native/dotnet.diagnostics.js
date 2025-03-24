@@ -43,7 +43,7 @@ function commandProcessInfo3() {
         ...serializeHeader(4 /* CommandSetId.Process */, 8 /* ProcessCommandId.ProcessInfo3 */, computeMessageByteLength(0)),
     ]);
 }
-function commandGcHeapDump() {
+function commandGcHeapDump(extraProviders) {
     return commandCollectTracing2({
         circularBufferMB: 256,
         format: 1,
@@ -61,17 +61,12 @@ function commandGcHeapDump() {
                 logLevel: 5,
                 provider_name: "Microsoft-Windows-DotNETRuntime",
                 arguments: null
-            }
+            },
+            ...extraProviders,
         ]
     });
 }
-function commandCounters(intervalSec, providers) {
-    const customProviders = providers ? providers.map(provider_name => ({
-        provider_name,
-        keywords: [0, 0 /* Keywords.None */],
-        logLevel: 4,
-        arguments: `EventCounterIntervalSec=${intervalSec}`
-    })) : [];
+function commandCounters(intervalSec, extraProviders) {
     return commandCollectTracing2({
         circularBufferMB: 256,
         format: 1,
@@ -83,11 +78,11 @@ function commandCounters(intervalSec, providers) {
                 provider_name: "System.Diagnostics.Metrics",
                 arguments: `SessionId=SHARED;Metrics=System.Runtime;RefreshInterval=${intervalSec};MaxTimeSeries=1000;MaxHistograms=10;ClientId=c98f989b-369c-41af-bc8e-7ab261fba16c`
             },
-            ...customProviders,
+            ...extraProviders,
         ]
     });
 }
-function commandSampleProfiler() {
+function commandSampleProfiler(extraProviders) {
     return commandCollectTracing2({
         circularBufferMB: 256,
         format: 1,
@@ -101,7 +96,8 @@ function commandSampleProfiler() {
                 logLevel: 4,
                 provider_name: "Microsoft-DotNETCore-SampleProfiler",
                 arguments: null
-            }
+            },
+            ...extraProviders,
         ]
     });
 }
@@ -288,10 +284,49 @@ function downloadBlob(messages) {
         bubbles: true, cancelable: true, view: window
     }));
 }
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
+var BuildConfiguration = "Debug";
+
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+function collectCpuSamples(options) {
+    if (!options)
+        options = {};
+    if (!serverSession) {
+        throw new Error("No active JS diagnostic session");
+    }
+    if (!is_instrument_method_enabled()) {
+        throw new Error("method instrumentation is not enabled, please set DOTNET_WasmPerfInstrumentation=\"1\" before runtime startup to enable it");
+    }
+    const onClosePromise = loaderHelpers.createPromiseController();
+    function onSessionStart(session) {
+        var _a;
+        // stop tracing after period of monitoring
+        Module.safeSetTimeout(() => {
+            session.sendCommand(commandStopTracing(session.session_id));
+        }, 1000 * ((_a = options === null || options === void 0 ? void 0 : options.durationSeconds) !== null && _a !== void 0 ? _a : 60));
+    }
+    setup_js_client({
+        onClosePromise: onClosePromise.promise_control,
+        skipDownload: options.skipDownload,
+        commandOnAdvertise: () => commandSampleProfiler(options.extraProviders || []),
+        onSessionStart,
+    });
+    return onClosePromise.promise;
+}
 function mono_wasm_instrument_method(method) {
     if (!is_instrument_method_enabled()) {
         return 0;
+    }
+    if (BuildConfiguration === "Debug") {
+        const chars = runtimeHelpers.mono_wasm_method_get_name_ex(method);
+        const methodName = runtimeHelpers.utf8ToString(chars);
+        runtimeHelpers.free(chars);
+        if (methodName !== "Exit") {
+            //mono_log_debug(`skipped method ${methodName}`);
+            return 0;
+        }
+        mono_log_debug(`instrumenting method ${methodName}`);
     }
     // TODO filter by method name, namespace, etc.
     return 1;
@@ -304,24 +339,24 @@ function is_instrument_method_enabled() {
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-function collectCpuSamples(durationMs, skipDownload) {
+function collectPerfCounters(options) {
+    if (!options)
+        options = {};
     if (!serverSession) {
         throw new Error("No active JS diagnostic session");
     }
-    if (!is_instrument_method_enabled()) {
-        throw new Error("method instrumentation is not enabled, please set DOTNET_WasmPerfInstrumentation=\"1\" before runtime startup to enable it");
-    }
     const onClosePromise = loaderHelpers.createPromiseController();
     function onSessionStart(session) {
+        var _a;
         // stop tracing after period of monitoring
         Module.safeSetTimeout(() => {
             session.sendCommand(commandStopTracing(session.session_id));
-        }, durationMs);
+        }, 1000 * ((_a = options === null || options === void 0 ? void 0 : options.durationSeconds) !== null && _a !== void 0 ? _a : 60));
     }
     setup_js_client({
         onClosePromise: onClosePromise.promise_control,
-        skipDownload,
-        commandOnAdvertise: commandSampleProfiler,
+        skipDownload: options.skipDownload,
+        commandOnAdvertise: () => commandCounters(options.intervalSeconds || 1, options.extraProviders || []),
         onSessionStart,
     });
     return onClosePromise.promise;
@@ -329,36 +364,17 @@ function collectCpuSamples(durationMs, skipDownload) {
 
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-function collectPerfCounters(durationMs, providers, intervalSec, skipDownload) {
-    if (!serverSession) {
-        throw new Error("No active JS diagnostic session");
-    }
-    const onClosePromise = loaderHelpers.createPromiseController();
-    function onSessionStart(session) {
-        // stop tracing after period of monitoring
-        Module.safeSetTimeout(() => {
-            session.sendCommand(commandStopTracing(session.session_id));
-        }, durationMs);
-    }
-    setup_js_client({
-        onClosePromise: onClosePromise.promise_control,
-        skipDownload,
-        commandOnAdvertise: () => commandCounters(intervalSec || 1, providers),
-        onSessionStart,
-    });
-    return onClosePromise.promise;
-}
-
-// Licensed to the .NET Foundation under one or more agreements.
-// The .NET Foundation licenses this file to you under the MIT license.
-function collectGcDump(skipDownload) {
+function collectGcDump(options) {
+    if (!options)
+        options = {};
     if (!serverSession) {
         throw new Error("No active JS diagnostic session");
     }
     const onClosePromise = loaderHelpers.createPromiseController();
     let stopDelayedAfterLastMessage = 0;
     let stopSent = false;
-    function onDataWrap(session, message) {
+    function onData(session, message) {
+        var _a;
         session.store(message);
         if (!stopSent) {
             // stop 500ms after last GC message on this session, there will be more messages after that
@@ -368,14 +384,14 @@ function collectGcDump(skipDownload) {
             stopDelayedAfterLastMessage = Module.safeSetTimeout(() => {
                 stopSent = true;
                 session.sendCommand(commandStopTracing(session.session_id));
-            }, 500);
+            }, 1000 * ((_a = options === null || options === void 0 ? void 0 : options.durationSeconds) !== null && _a !== void 0 ? _a : 1));
         }
     }
     setup_js_client({
         onClosePromise: onClosePromise.promise_control,
-        skipDownload,
-        commandOnAdvertise: commandGcHeapDump,
-        onData: onDataWrap,
+        skipDownload: options.skipDownload,
+        commandOnAdvertise: () => commandGcHeapDump(options.extraProviders || []),
+        onData,
     });
     return onClosePromise.promise;
 }
@@ -494,13 +510,13 @@ function createDiagConnectionJs(socket_handle, scenarioName) {
     if (!fromScenarioNameOnce) {
         fromScenarioNameOnce = true;
         if (scenarioName.startsWith("js://gcdump")) {
-            collectGcDump(false);
+            collectGcDump({});
         }
         if (scenarioName.startsWith("js://counters")) {
-            collectPerfCounters(5 * 60 * 1000); // 5 minutes
+            collectPerfCounters({});
         }
         if (scenarioName.startsWith("js://cpu-samples")) {
-            collectCpuSamples(5 * 60 * 1000); // 5 minutes
+            collectCpuSamples({});
         }
         const dotnetDiagnosticClient = globalThis.dotnetDiagnosticClient;
         if (typeof dotnetDiagnosticClient === "function") {

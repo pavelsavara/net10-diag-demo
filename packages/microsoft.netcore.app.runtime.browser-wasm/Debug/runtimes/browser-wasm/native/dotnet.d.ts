@@ -439,7 +439,7 @@ type DotnetModuleConfig = {
     imports?: any;
     exports?: string[];
 } & Partial<EmscriptenModule>;
-type APIType = {
+type RunAPIType = {
     /**
      * Runs the Main() method of the application.
      * Note: this will keep the .NET runtime alive and the APIs will be available for further calls.
@@ -489,6 +489,8 @@ type APIType = {
      * You can register the scripts using MonoConfig.resources.modulesAfterConfigLoaded and MonoConfig.resources.modulesAfterRuntimeReady.
      */
     invokeLibraryInitializers: (functionName: string, args: any[]) => Promise<void>;
+};
+type MemoryAPIType = {
     /**
      * Writes to the WASM linear memory
      */
@@ -629,27 +631,43 @@ type APIType = {
      * Returns a short term view of the WASM linear memory. Don't store the reference, don't use it after await.
      */
     localHeapViewF64: () => Float64Array;
+};
+type DiagnosticsAPIType = {
     /**
-     * creates diagnostic trace file.
+     * creates diagnostic trace file. Default is 60 seconds.
+     * It could be opened in PerfView or Visual Studio as is.
      */
-    collectCpuSamples: (durationMs: number, skipDownload?: boolean) => Promise<Uint8Array[]>;
+    collectCpuSamples: (options?: DiagnosticCommandOptions) => Promise<Uint8Array[]>;
     /**
-     * creates diagnostic trace file.
-     * It could be opened in PerfView as is.
+     * creates diagnostic trace file. Default is 60 seconds.
+     * It could be opened in PerfView or Visual Studio as is.
      * It could be summarized by `dotnet-trace report xxx.nettrace topN -n 10`
      */
-    collectPerfCounters: (durationMs: number, providers?: string[], intervalSec?: number, skipDownload?: boolean) => Promise<Uint8Array[]>;
+    collectPerfCounters: (options?: DiagnosticCommandOptions) => Promise<Uint8Array[]>;
     /**
      * creates diagnostic trace file.
      * It could be opened in PerfView as is.
      * It could be converted for Visual Studio using `dotnet-gcdump convert`.
      */
-    collectGcDump: (skipDownload?: boolean) => Promise<Uint8Array[]>;
+    collectGcDump: (options?: DiagnosticCommandOptions) => Promise<Uint8Array[]>;
     /**
-     * changes DOTNET_DiagnosticPorts and makes a new connection.
+     * changes DOTNET_DiagnosticPorts and makes a new connection to WebSocket on that URL.
      */
     connectDSRouter(url: string): void;
 };
+type DiagnosticCommandProviderV2 = {
+    keywords: [number, number];
+    logLevel: number;
+    provider_name: string;
+    arguments: string | null;
+};
+type DiagnosticCommandOptions = {
+    durationSeconds?: number;
+    intervalSeconds?: number;
+    skipDownload?: boolean;
+    extraProviders?: DiagnosticCommandProviderV2[];
+};
+type APIType = RunAPIType & MemoryAPIType & DiagnosticsAPIType;
 type RuntimeAPI = {
     INTERNAL: any;
     Module: EmscriptenModule;

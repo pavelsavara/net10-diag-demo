@@ -7444,7 +7444,7 @@ function dbg(...args) {
 
   FS.createPreloadedFile = FS_createPreloadedFile;
   FS.staticInit();Module["FS_createPath"] = FS.createPath;Module["FS_createDataFile"] = FS.createDataFile;Module["FS_createPath"] = FS.createPath;Module["FS_createDataFile"] = FS.createDataFile;Module["FS_createPreloadedFile"] = FS.createPreloadedFile;Module["FS_unlink"] = FS.unlink;Module["FS_createLazyFile"] = FS.createLazyFile;Module["FS_createDevice"] = FS.createDevice;;
-DOTNET.setup({ wasmEnableSIMD: true,wasmEnableEH: true,enableAotProfiler: false, enableBrowserProfiler: false, enableLogProfiler: false, enablePerfTracing: false, runAOTCompilation: false, wasmEnableThreads: false, gitHash: "cbd1569a3d4c5c2412cdc8e1510ef90c297e2bf5", });;
+DOTNET.setup({ wasmEnableSIMD: true,wasmEnableEH: true,enableAotProfiler: false, enableBrowserProfiler: false, enableLogProfiler: false, enablePerfTracing: false, runAOTCompilation: false, wasmEnableThreads: false, gitHash: "d2f4164bc1c6731a7d880e877f40b024b825cf51", });;
 function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
